@@ -208,8 +208,11 @@
 
 	// 계좌번호 복사
 	function copyBankID(bankID) {
-		navigator.clipboard.writeText(bankID);
+		navigator.clipboard.writeText(bankID).then(() => {
+			alert(bankID + " 복사 되었습니다.");
+		});
 	}
+
 </script>	
 
 </body>
