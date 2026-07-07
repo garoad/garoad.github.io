@@ -242,6 +242,7 @@ function detectSaveFormat(originalBuffer, saveType) {
       if ((textTemp === "1784" || textTemp === "9784") && numTemp === 0) {
         const textTemp2 = getBytesHex(num4 + 1536, 2, false);
         if (textTemp2 === "2784" || textTemp2 === "2F84" || textTemp2 === "1784" || textTemp2 === "9784") {
+          view.setUint16(num4 + 4, 1024, true); // Fix infinite loop by patching the buffer size metadata
           num3 = num4;
           continue;
         }
@@ -275,7 +276,9 @@ function detectSaveFormat(originalBuffer, saveType) {
           startOffset = num4 + parseInt(getBytesHex(num4, 2, true), 16);
           break;
         }
-        num4 = num4 + parseInt(getBytesHex(num4, 2, true), 16) + num;
+        const increment = parseInt(getBytesHex(num4, 2, true), 16) + num;
+        if (increment <= 0 || isNaN(increment)) break;
+        num4 = num4 + increment;
       }
       if (startOffset !== -1) {
         return { format: 'dm2', startOffset };
@@ -295,7 +298,9 @@ function detectSaveFormat(originalBuffer, saveType) {
           startOffset = num5 + parseInt(getBytesHex(num5, 2, true), 16);
           break;
         }
-        num5 = num5 + parseInt(getBytesHex(num5, 2, true), 16) + num;
+        const increment = parseInt(getBytesHex(num5, 2, true), 16) + num;
+        if (increment <= 0 || isNaN(increment)) break;
+        num5 = num5 + increment;
       }
       if (startOffset !== -1) {
         return { format: 'mem', startOffset };
@@ -849,9 +854,42 @@ function setupFileLoader() {
   });
 
   btnCloseFile.addEventListener('click', () => {
-    // Reset editor
+    // Reset editor state
     currentEditor = null;
     currentFile = null;
+    selectedUnitIdx = -1;
+    selectedPilotIdx = -1;
+    selectedWeaponIdx = -1;
+    selectedTamaIdx = -1;
+    
+    // Hide details panel in each tab
+    document.getElementById('unit-empty-state').style.display = 'flex';
+    document.getElementById('unit-detail-header').style.display = 'none';
+    document.getElementById('unit-detail-body').style.display = 'none';
+    
+    document.getElementById('pilot-empty-state').style.display = 'flex';
+    document.getElementById('pilot-detail-header').style.display = 'none';
+    document.getElementById('pilot-detail-body').style.display = 'none';
+    
+    document.getElementById('weapon-empty-state').style.display = 'flex';
+    document.getElementById('weapon-detail-header').style.display = 'none';
+    document.getElementById('weapon-detail-body').style.display = 'none';
+    
+    document.getElementById('tama-empty-state').style.display = 'flex';
+    document.getElementById('tama-detail-header').style.display = 'none';
+    document.getElementById('tama-detail-body').style.display = 'none';
+    
+    // Clear lists html
+    document.getElementById('unit-list-container').innerHTML = '';
+    document.getElementById('pilot-list-container').innerHTML = '';
+    document.getElementById('weapon-list-container').innerHTML = '';
+    document.getElementById('tama-list-container').innerHTML = '';
+    
+    // Clear search keys
+    document.getElementById('unit-search').value = '';
+    document.getElementById('pilot-search').value = '';
+    document.getElementById('weapon-search').value = '';
+    document.getElementById('tama-search').value = '';
     
     loadedFileInfo.style.display = 'none';
     btnCloseFile.style.display = 'none';
@@ -1061,6 +1099,7 @@ function renderTab(tabId) {
 // ------------------------------------------
 let selectedUnitIdx = -1;
 function renderUnitsList() {
+  if (!currentEditor || currentEditor.saveType !== 'scenario') return;
   const container = document.getElementById('unit-list-container');
   const searchKey = document.getElementById('unit-search').value.toLowerCase();
   container.innerHTML = '';
@@ -1221,6 +1260,7 @@ function bindUpgradeRange(id, val) {
 // ------------------------------------------
 let selectedPilotIdx = -1;
 function renderPilotsList() {
+  if (!currentEditor || currentEditor.saveType !== 'scenario') return;
   const container = document.getElementById('pilot-list-container');
   const searchKey = document.getElementById('pilot-search').value.toLowerCase();
   container.innerHTML = '';
@@ -1339,6 +1379,7 @@ function selectPilot(idx) {
 // ------------------------------------------
 let selectedWeaponIdx = -1;
 function renderWeaponsList() {
+  if (!currentEditor || currentEditor.saveType !== 'scenario') return;
   const container = document.getElementById('weapon-list-container');
   const searchKey = document.getElementById('weapon-search').value.toLowerCase();
   container.innerHTML = '';
@@ -1403,6 +1444,7 @@ function selectWeapon(idx) {
 // ------------------------------------------
 let selectedTamaIdx = -1;
 function renderTamaList() {
+  if (!currentEditor || currentEditor.saveType !== 'scenario') return;
   const container = document.getElementById('tama-list-container');
   const searchKey = document.getElementById('tama-search').value.toLowerCase();
   container.innerHTML = '';
@@ -1496,7 +1538,7 @@ function selectTama(idx) {
 // Items (Parts & Sozai) Tab Render
 // ------------------------------------------
 function renderItemsTab() {
-  if (currentEditor.saveType !== 'scenario') return;
+  if (!currentEditor || currentEditor.saveType !== 'scenario') return;
   const ds = currentEditor.dataSet;
   
   // Parts Grid
