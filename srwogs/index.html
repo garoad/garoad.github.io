@@ -1,0 +1,876 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>슈퍼로봇대전 OG's 세이브 에디터 Web</title>
+  <link rel="stylesheet" href="style.css">
+  <!-- encoding-japanese CDN (Shift-JIS 변환용) -->
+  <script src="https://unpkg.com/encoding-japanese@2.2.0/encoding.min.js"></script>
+  <!-- fontawesome 아이콘용 -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+
+  <!-- Header -->
+  <header>
+    <div class="logo-container">
+      <div class="logo-icon"><i class="fa-solid fa-robot"></i></div>
+      <div class="logo-text">SRW OG's Save Editor</div>
+      <div class="logo-badge">Web v1.50</div>
+    </div>
+    <div class="header-actions">
+      <span id="loaded-file-info" style="font-size: 0.85rem; color: var(--text-secondary); display: none;"></span>
+      <button id="btn-save-file" class="btn btn-primary btn-disabled" disabled>
+        <i class="fa-solid fa-download"></i> 세이브 다운로드
+      </button>
+      <button id="btn-close-file" class="btn btn-secondary" style="display: none;">
+        <i class="fa-solid fa-xmark"></i> 닫기
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main>
+    
+    <!-- Loader Screen -->
+    <div id="loader-screen">
+      <div class="loader-card">
+        <h2 class="loader-title">슈퍼로봇대전 OG's 세이브 에디터</h2>
+        <p class="loader-desc">
+          PS2용 슈퍼로봇대전 ORIGINAL GENERATIONS 세이브 파일을 웹에서 직접 수정할 수 있는 에디터입니다.<br>
+          PC에 흡출한 세이브 데이터를 업로드해 주세요.
+        </p>
+        
+        <div class="drop-zone" id="drop-zone">
+          <div class="drop-icon"><i class="fa-solid fa-file-shield"></i></div>
+          <p style="font-size: 0.95rem; font-weight: 600;">세이브 파일을 여기에 드래그 앤 드롭 하거나 클릭하세요</p>
+          <p style="font-size: 0.8rem; color: var(--text-muted);">생파일(BIN, SAV), .psu, .psv, .dm2, .mem 지원</p>
+          <input type="file" id="file-input" class="file-input">
+        </div>
+        
+        <div class="format-badges">
+          <span class="format-badge">시나리오 세이브 (79,360 바이트)</span>
+          <span class="format-badge">시스템 세이브 (171,008 바이트)</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Editor Screen -->
+    <div id="editor-screen">
+      <!-- Navigation Tabs -->
+      <div class="tab-navigation">
+        <button class="nav-tab active" data-tab="main">
+          <i class="fa-solid fa-sliders"></i> 기본 정보
+        </button>
+        <button class="nav-tab" data-tab="units">
+          <i class="fa-solid fa-jet-fighter"></i> 기체 편집
+        </button>
+        <button class="nav-tab" data-tab="pilots">
+          <i class="fa-solid fa-user-astronaut"></i> 파일럿 편집
+        </button>
+        <button class="nav-tab" data-tab="weapons">
+          <i class="fa-solid fa-gun"></i> 환장무기 편집
+        </button>
+        <button class="nav-tab" data-tab="tama">
+          <i class="fa-solid fa-burst"></i> 특수탄 편집
+        </button>
+        <button class="nav-tab" data-tab="items">
+          <i class="fa-solid fa-box-open"></i> 파츠 / 소재
+        </button>
+      </div>
+
+      <!-- Tab Content Area -->
+      <div class="tab-content-container">
+        
+        <!-- Tab 1: Main (기본 정보) -->
+        <div class="tab-panel active" id="panel-main">
+          <div style="max-width: 800px; width:100%; margin: 0 auto; display: flex; flex-direction: column; gap: 25px;">
+            <div class="detail-title" style="border-bottom: 1px solid var(--border-color); padding-bottom: 15px;">
+              <i class="fa-solid fa-sliders" style="color: var(--secondary); margin-right: 8px;"></i> 세이브 기본 설정
+            </div>
+            
+            <!-- Scenario Data Form (Shown if file is scenario) -->
+            <div id="main-scenario-fields" class="form-grid">
+              <div class="form-group">
+                <label>보유 자금 (Money)</label>
+                <input type="number" id="main-money" class="form-control" min="0" max="99999999" value="0">
+              </div>
+              <div class="form-group">
+                <label>숙련도 (SR포인트)</label>
+                <input type="number" id="main-jyukurendo" class="form-control" min="0" max="99" value="0">
+              </div>
+              <div class="form-group">
+                <label>현재 턴 수</label>
+                <input type="number" id="main-turn" class="form-control" min="0" max="9999" value="0">
+              </div>
+              <div class="form-group">
+                <label>게임 모드 (Mode)</label>
+                <select id="main-mode" class="form-control"></select>
+              </div>
+              <div class="form-group">
+                <label>클리어 횟수 (OG1)</label>
+                <input type="number" id="main-clear1" class="form-control" min="0" max="255" value="0">
+              </div>
+              <div class="form-group">
+                <label>클리어 횟수 (OG2)</label>
+                <input type="number" id="main-clear2" class="form-control" min="0" max="255" value="0">
+              </div>
+              <div class="form-group">
+                <label>클리어 횟수 (OG2.5)</label>
+                <input type="number" id="main-clear3" class="form-control" min="0" max="255" value="0">
+              </div>
+              <div class="form-group">
+                <label>시나리오 루트 (OG1)</label>
+                <select id="main-scenario1" class="form-control"></select>
+              </div>
+              <div class="form-group">
+                <label>시나리오 루트 (OG2)</label>
+                <select id="main-scenario2" class="form-control"></select>
+              </div>
+              <div class="form-group">
+                <label>시나리오 루트 (OG2.5)</label>
+                <select id="main-scenario3" class="form-control"></select>
+              </div>
+              <div class="form-group">
+                <label>스토리 번호 (StoryNo)</label>
+                <input type="number" id="main-storyno" class="form-control" min="0" max="255" value="0">
+              </div>
+              
+              <div class="form-group switch-container" style="grid-column: span 2;">
+                <div class="switch-label-desc">
+                  <div class="slider-label" style="font-size: 0.9rem;">15단 개조 잠금 해제</div>
+                  <div class="switch-desc">기체 및 무기의 개조 한계를 15단계로 확장합니다.</div>
+                </div>
+                <label class="switch">
+                  <input type="checkbox" id="main-special15">
+                  <span class="slider-toggle"></span>
+                </label>
+              </div>
+              
+              <div class="form-group switch-container" style="grid-column: span 2;">
+                <div class="switch-label-desc">
+                  <div class="slider-label" style="font-size: 0.9rem;">모든 BGM 끄기</div>
+                  <div class="switch-desc">게임 내 전조등의 BGM 설정을 일괄 비활성화합니다.</div>
+                </div>
+                <label class="switch">
+                  <input type="checkbox" id="main-bgmoff">
+                  <span class="slider-toggle"></span>
+                </label>
+              </div>
+            </div>
+
+            <!-- System Data Form (Shown if file is system) -->
+            <div id="main-system-fields" class="form-grid" style="display: none;">
+              <div class="form-group switch-container">
+                <div class="switch-label-desc">
+                  <div class="slider-label">로봇 도감 100% 컴플리트</div>
+                  <div class="switch-desc">로봇 도감의 모든 기체를 해금합니다.</div>
+                </div>
+                <label class="switch">
+                  <input type="checkbox" id="sys-robotcomp">
+                  <span class="slider-toggle"></span>
+                </label>
+              </div>
+              
+              <div class="form-group switch-container">
+                <div class="switch-label-desc">
+                  <div class="slider-label">캐릭터 도감 100% 컴플리트</div>
+                  <div class="switch-desc">캐릭터 도감의 모든 인물을 해금합니다.</div>
+                </div>
+                <label class="switch">
+                  <input type="checkbox" id="sys-charcomp">
+                  <span class="slider-toggle"></span>
+                </label>
+              </div>
+
+              <div class="form-group switch-container">
+                <div class="switch-label-desc">
+                  <div class="slider-label">용어 사전 컴플리트</div>
+                  <div class="switch-desc">게임 용어 사전을 100% 완성합니다.</div>
+                </div>
+                <label class="switch">
+                  <input type="checkbox" id="sys-wordcomp">
+                  <span class="slider-toggle"></span>
+                </label>
+              </div>
+
+              <div class="form-group switch-container">
+                <div class="switch-label-desc">
+                  <div class="slider-label">사운드 실린더 컴플리트</div>
+                  <div class="switch-desc">모든 BGM을 사운드 테스트에서 해금합니다.</div>
+                </div>
+                <label class="switch">
+                  <input type="checkbox" id="sys-soundcomp">
+                  <span class="slider-toggle"></span>
+                </label>
+              </div>
+
+              <div class="form-group switch-container">
+                <div class="switch-label-desc">
+                  <div class="slider-label">데모 셀렉트 컴플리트</div>
+                  <div class="switch-desc">모든 이벤트 데모 비디오를 해금합니다.</div>
+                </div>
+                <label class="switch">
+                  <input type="checkbox" id="sys-democomp">
+                  <span class="slider-toggle"></span>
+                </label>
+              </div>
+
+              <div class="form-group switch-container">
+                <div class="switch-label-desc">
+                  <div class="slider-label">시나리오 차트 컴플리트</div>
+                  <div class="switch-desc">모든 시나리오 차트를 해금합니다.</div>
+                </div>
+                <label class="switch">
+                  <input type="checkbox" id="sys-scenariocomp">
+                  <span class="slider-toggle"></span>
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 2: Units (기체 편집) -->
+        <div class="tab-panel" id="panel-units">
+          <div class="split-layout">
+            <!-- Sidebar: Unit List -->
+            <div class="list-sidebar">
+              <div class="sidebar-search">
+                <div class="search-input-wrapper">
+                  <input type="text" id="unit-search" class="search-input" placeholder="기체명 또는 코드로 검색...">
+                </div>
+              </div>
+              <div class="sidebar-list" id="unit-list-container">
+                <!-- Javascript will inject list items here -->
+              </div>
+            </div>
+            <!-- Detail Editor Panel -->
+            <div class="detail-panel" id="unit-editor-panel">
+              <div class="empty-detail-state" id="unit-empty-state">
+                <div class="empty-icon"><i class="fa-solid fa-circle-info"></i></div>
+                <div class="empty-text">편집할 기체를 왼쪽 목록에서 선택해 주세요.</div>
+              </div>
+              <div class="detail-header" id="unit-detail-header" style="display: none;">
+                <div class="detail-header-info">
+                  <div class="detail-title" id="unit-detail-title">기체 이름</div>
+                  <div class="detail-subtitle" id="unit-detail-idx">SLOT #00</div>
+                </div>
+              </div>
+              <div class="detail-body" id="unit-detail-body" style="display: none;">
+                <div class="form-grid">
+                  <div class="form-group full-width">
+                    <label>기체 코드 (Unit Type)</label>
+                    <select id="unit-code-select" class="form-control"></select>
+                  </div>
+                  
+                  <div class="form-group switch-container">
+                    <div class="switch-label-desc">
+                      <div class="slider-label">기체 존재 플래그</div>
+                      <div class="switch-desc">기체가 세이브에 존재하는지 여부</div>
+                    </div>
+                    <label class="switch">
+                      <input type="checkbox" id="unit-sonzai-check">
+                      <span class="slider-toggle"></span>
+                    </label>
+                  </div>
+
+                  <div class="form-group switch-container">
+                    <div class="switch-label-desc">
+                      <div class="slider-label">OG2 모드 플래그</div>
+                      <div class="switch-desc">OG2 데이터로 취급할지 여부</div>
+                    </div>
+                    <label class="switch">
+                      <input type="checkbox" id="unit-og2-check">
+                      <span class="slider-toggle"></span>
+                    </label>
+                  </div>
+
+                  <div class="form-group">
+                    <label>풀개조 특전 (Full Upgrade Bonus)</label>
+                    <select id="unit-full-bonus" class="form-control"></select>
+                  </div>
+                </div>
+
+                <div class="section-divider">
+                  <div class="section-divider-text">기체 능력 개조 단계</div>
+                  <div class="section-divider-line"></div>
+                </div>
+
+                <div class="form-grid">
+                  <div class="slider-group">
+                    <div class="slider-header">
+                      <span class="slider-label">HP 개조 단계</span>
+                      <span class="slider-value" id="val-unit-hp">0</span>
+                    </div>
+                    <div class="slider-container">
+                      <input type="range" id="unit-hp-range" min="0" max="15" value="0">
+                    </div>
+                  </div>
+
+                  <div class="slider-group">
+                    <div class="slider-header">
+                      <span class="slider-label">EN 개조 단계</span>
+                      <span class="slider-value" id="val-unit-en">0</span>
+                    </div>
+                    <div class="slider-container">
+                      <input type="range" id="unit-en-range" min="0" max="15" value="0">
+                    </div>
+                  </div>
+
+                  <div class="slider-group">
+                    <div class="slider-header">
+                      <span class="slider-label">운동성 개조 단계</span>
+                      <span class="slider-value" id="val-unit-undou">0</span>
+                    </div>
+                    <div class="slider-container">
+                      <input type="range" id="unit-undou-range" min="0" max="15" value="0">
+                    </div>
+                  </div>
+
+                  <div class="slider-group">
+                    <div class="slider-header">
+                      <span class="slider-label">장갑 개조 단계</span>
+                      <span class="slider-value" id="val-unit-soukou">0</span>
+                    </div>
+                    <div class="slider-container">
+                      <input type="range" id="unit-soukou-range" min="0" max="15" value="0">
+                    </div>
+                  </div>
+                </div>
+
+                <div class="section-divider">
+                  <div class="section-divider-text">장착 강화파츠</div>
+                  <div class="section-divider-line"></div>
+                </div>
+
+                <div class="form-grid">
+                  <div class="form-group">
+                    <label>파츠 슬롯 1</label>
+                    <select id="unit-parts-1" class="form-control"></select>
+                  </div>
+                  <div class="form-group">
+                    <label>파츠 슬롯 2</label>
+                    <select id="unit-parts-2" class="form-control"></select>
+                  </div>
+                  <div class="form-group">
+                    <label>파츠 슬롯 3</label>
+                    <select id="unit-parts-3" class="form-control"></select>
+                  </div>
+                  <div class="form-group">
+                    <label>파츠 슬롯 4</label>
+                    <select id="unit-parts-4" class="form-control"></select>
+                  </div>
+                </div>
+
+                <div class="section-divider">
+                  <div class="section-divider-text">탑승 파일럿 매핑</div>
+                  <div class="section-divider-line"></div>
+                </div>
+
+                <div class="form-grid">
+                  <div class="form-group">
+                    <label>메인 파일럿 (Pilot 1)</label>
+                    <select id="unit-pilot-1" class="form-control"></select>
+                  </div>
+                  <div class="form-group">
+                    <label>서브 파일럿 1 (Pilot 2)</label>
+                    <select id="unit-pilot-2" class="form-control"></select>
+                  </div>
+                  <div class="form-group">
+                    <label>서브 파일럿 2 (Pilot 3)</label>
+                    <select id="unit-pilot-3" class="form-control"></select>
+                  </div>
+                  <div class="form-group">
+                    <label>서브 파일럿 3 (Pilot 4)</label>
+                    <select id="unit-pilot-4" class="form-control"></select>
+                  </div>
+                </div>
+
+                <div class="section-divider">
+                  <div class="section-divider-text">무기 개조 및 장착 특수탄</div>
+                  <div class="section-divider-line"></div>
+                </div>
+
+                <div class="form-grid" id="unit-weapons-container">
+                  <!-- Javascript will dynamically build weapon upgrade sliders & Tama dropdowns -->
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 3: Pilots (파일럿 편집) -->
+        <div class="tab-panel" id="panel-pilots">
+          <div class="split-layout">
+            <!-- Sidebar: Pilot List -->
+            <div class="list-sidebar">
+              <div class="sidebar-search">
+                <div class="search-input-wrapper">
+                  <input type="text" id="pilot-search" class="search-input" placeholder="파일럿명 검색...">
+                </div>
+              </div>
+              <div class="sidebar-list" id="pilot-list-container">
+                <!-- Javascript will inject list items here -->
+              </div>
+            </div>
+            <!-- Detail Editor Panel -->
+            <div class="detail-panel" id="pilot-editor-panel">
+              <div class="empty-detail-state" id="pilot-empty-state">
+                <div class="empty-icon"><i class="fa-solid fa-circle-info"></i></div>
+                <div class="empty-text">편집할 파일럿을 왼쪽 목록에서 선택해 주세요.</div>
+              </div>
+              <div class="detail-header" id="pilot-detail-header" style="display: none;">
+                <div class="detail-header-info">
+                  <div class="detail-title" id="pilot-detail-title">파일럿 이름</div>
+                  <div class="detail-subtitle" id="pilot-detail-idx">SLOT #00</div>
+                </div>
+              </div>
+              <div class="detail-body" id="pilot-detail-body" style="display: none;">
+                <div class="form-grid">
+                  <div class="form-group full-width">
+                    <label>파일럿 코드 (Pilot Type)</label>
+                    <select id="pilot-code-select" class="form-control"></select>
+                  </div>
+
+                  <div class="form-group switch-container">
+                    <div class="switch-label-desc">
+                      <div class="slider-label">파일럿 존재 플래그</div>
+                      <div class="switch-desc">파일럿이 세이브에 존재하는지 여부</div>
+                    </div>
+                    <label class="switch">
+                      <input type="checkbox" id="pilot-sonzai-check">
+                      <span class="slider-toggle"></span>
+                    </label>
+                  </div>
+
+                  <div class="form-group switch-container">
+                    <div class="switch-label-desc">
+                      <div class="slider-label">OG2 모드 플래그</div>
+                      <div class="switch-desc">OG2 데이터로 취급할지 여부</div>
+                    </div>
+                    <label class="switch">
+                      <input type="checkbox" id="pilot-og2-check">
+                      <span class="slider-toggle"></span>
+                    </label>
+                  </div>
+
+                  <div class="form-group">
+                    <label>탑승 기체 슬롯 ID</label>
+                    <input type="number" id="pilot-unit-id" class="form-control" min="0" max="65535">
+                  </div>
+                  
+                  <div class="form-group switch-container">
+                    <div class="switch-label-desc">
+                      <div class="slider-label">정신 조작 플래그 (CGFlag)</div>
+                      <div class="switch-desc">C# 툴의 CGFlag 기능 활성화</div>
+                    </div>
+                    <label class="switch">
+                      <input type="checkbox" id="pilot-cgflag-check">
+                      <span class="slider-toggle"></span>
+                    </label>
+                  </div>
+                </div>
+
+                <div class="section-divider">
+                  <div class="section-divider-text">성장 데이터</div>
+                  <div class="section-divider-line"></div>
+                </div>
+
+                <div class="form-grid">
+                  <div class="form-group">
+                    <label>보유 PP</label>
+                    <input type="number" id="pilot-pp" class="form-control" min="0" max="99999">
+                  </div>
+                  <div class="form-group">
+                    <label>격추수 (Kills)</label>
+                    <input type="number" id="pilot-kills" class="form-control" min="0" max="9999">
+                  </div>
+                  <div class="form-group">
+                    <label>보유 경험치 (Ex)</label>
+                    <input type="number" id="pilot-ex" class="form-control" min="0" max="999999">
+                  </div>
+                </div>
+
+                <div class="section-divider">
+                  <div class="section-divider-text">추가 능력치 (개조치)</div>
+                  <div class="section-divider-line"></div>
+                </div>
+
+                <div class="form-grid">
+                  <div class="form-group">
+                    <label>격투 개조치</label>
+                    <input type="number" id="pilot-kakuto" class="form-control" min="0" max="999">
+                  </div>
+                  <div class="form-group">
+                    <label>사격 개조치</label>
+                    <input type="number" id="pilot-syageki" class="form-control" min="0" max="999">
+                  </div>
+                  <div class="form-group">
+                    <label>방어 개조치</label>
+                    <input type="number" id="pilot-bougyo" class="form-control" min="0" max="999">
+                  </div>
+                  <div class="form-group">
+                    <label>기량 개조치</label>
+                    <input type="number" id="pilot-giryo" class="form-control" min="0" max="999">
+                  </div>
+                  <div class="form-group">
+                    <label>회피 개조치</label>
+                    <input type="number" id="pilot-kaihi" class="form-control" min="0" max="999">
+                  </div>
+                  <div class="form-group">
+                    <label>명중 개조치</label>
+                    <input type="number" id="pilot-meicyu" class="form-control" min="0" max="999">
+                  </div>
+                </div>
+
+                <div class="section-divider">
+                  <div class="section-divider-text">지형 적응</div>
+                  <div class="section-divider-line"></div>
+                </div>
+
+                <div class="form-grid">
+                  <div class="form-group">
+                    <label>공중 적응 (A)</label>
+                    <select id="pilot-adp-air" class="form-control">
+                      <option value="3">S</option>
+                      <option value="2">A</option>
+                      <option value="1">B</option>
+                      <option value="0">C</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label>지상 적응 (G)</label>
+                    <select id="pilot-adp-ground" class="form-control">
+                      <option value="3">S</option>
+                      <option value="2">A</option>
+                      <option value="1">B</option>
+                      <option value="0">C</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label>바다 적응 (W)</label>
+                    <select id="pilot-adp-water" class="form-control">
+                      <option value="3">S</option>
+                      <option value="2">A</option>
+                      <option value="1">B</option>
+                      <option value="0">C</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label>우주 적응 (S)</label>
+                    <select id="pilot-adp-space" class="form-control">
+                      <option value="3">S</option>
+                      <option value="2">A</option>
+                      <option value="1">B</option>
+                      <option value="0">C</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="section-divider">
+                  <div class="section-divider-text">습득 특수 능력</div>
+                  <div class="section-divider-line"></div>
+                </div>
+
+                <div class="form-grid" id="pilot-skills-container">
+                  <!-- Javascript will build 6 skill dropdowns and level controls -->
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 4: Weapons (환장무기 편집) -->
+        <div class="tab-panel" id="panel-weapons">
+          <div class="split-layout">
+            <!-- Sidebar: Weapon List -->
+            <div class="list-sidebar">
+              <div class="sidebar-search">
+                <div class="search-input-wrapper">
+                  <input type="text" id="weapon-search" class="search-input" placeholder="무기명 검색...">
+                </div>
+              </div>
+              <div class="sidebar-list" id="weapon-list-container">
+                <!-- Javascript will inject list items here -->
+              </div>
+            </div>
+            <!-- Detail Editor Panel -->
+            <div class="detail-panel" id="weapon-editor-panel">
+              <div class="empty-detail-state" id="weapon-empty-state">
+                <div class="empty-icon"><i class="fa-solid fa-circle-info"></i></div>
+                <div class="empty-text">편집할 무기를 왼쪽 목록에서 선택해 주세요.</div>
+              </div>
+              <div class="detail-header" id="weapon-detail-header" style="display: none;">
+                <div class="detail-header-info">
+                  <div class="detail-title" id="weapon-detail-title">무기 이름</div>
+                  <div class="detail-subtitle" id="weapon-detail-idx">SLOT #000</div>
+                </div>
+              </div>
+              <div class="detail-body" id="weapon-detail-body" style="display: none;">
+                <div class="form-grid">
+                  <div class="form-group full-width">
+                    <label>무기 종류 (Weapon Type)</label>
+                    <select id="weapon-code-select" class="form-control"></select>
+                  </div>
+
+                  <div class="form-group switch-container">
+                    <div class="switch-label-desc">
+                      <div class="slider-label">OG2 모드 플래그</div>
+                      <div class="switch-desc">OG2 데이터로 취급할지 여부</div>
+                    </div>
+                    <label class="switch">
+                      <input type="checkbox" id="weapon-og2-check">
+                      <span class="slider-toggle"></span>
+                    </label>
+                  </div>
+
+                  <div class="form-group switch-container">
+                    <div class="switch-label-desc">
+                      <div class="slider-label">무기 장착 상태 플래그</div>
+                      <div class="switch-desc">어느 기체에 장착되어 있는지 플래그</div>
+                    </div>
+                    <label class="switch">
+                      <input type="checkbox" id="weapon-soubi-check">
+                      <span class="slider-toggle"></span>
+                    </label>
+                  </div>
+
+                  <div class="form-group">
+                    <label>장장 특수탄 ID</label>
+                    <input type="number" id="weapon-tama-id" class="form-control" min="0" max="255">
+                  </div>
+                </div>
+
+                <div class="section-divider">
+                  <div class="section-divider-text">개조 수준</div>
+                  <div class="section-divider-line"></div>
+                </div>
+
+                <div class="form-grid">
+                  <div class="slider-group">
+                    <div class="slider-header">
+                      <span class="slider-label">무기 개조 단계</span>
+                      <span class="slider-value" id="val-weapon-kaizou">0</span>
+                    </div>
+                    <div class="slider-container">
+                      <input type="range" id="weapon-kaizou-range" min="0" max="15" value="0">
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 5: Tama (특수탄 편집) -->
+        <div class="tab-panel" id="panel-tama">
+          <div class="split-layout">
+            <!-- Sidebar: Tama List -->
+            <div class="list-sidebar">
+              <div class="sidebar-search">
+                <div class="search-input-wrapper">
+                  <input type="text" id="tama-search" class="search-input" placeholder="특수탄명 검색...">
+                </div>
+              </div>
+              <div class="sidebar-list" id="tama-list-container">
+                <!-- Javascript will inject list items here -->
+              </div>
+            </div>
+            <!-- Detail Editor Panel -->
+            <div class="detail-panel" id="tama-editor-panel">
+              <div class="empty-detail-state" id="tama-empty-state">
+                <div class="empty-icon"><i class="fa-solid fa-circle-info"></i></div>
+                <div class="empty-text">편집할 특수탄을 왼쪽 목록에서 선택해 주세요.</div>
+              </div>
+              <div class="detail-header" id="tama-detail-header" style="display: none;">
+                <div class="detail-header-info">
+                  <div class="detail-title" id="tama-detail-title">특수탄 이름</div>
+                  <div class="detail-subtitle" id="tama-detail-idx">SLOT #000</div>
+                </div>
+              </div>
+              <div class="detail-body" id="tama-detail-body" style="display: none;">
+                <div class="form-grid">
+                  <div class="form-group full-width">
+                    <label>특수탄 이름 (최대 20자 영문/일어)</label>
+                    <input type="text" id="tama-name" class="form-control" maxlength="20" placeholder="특수탄 이름">
+                  </div>
+                  
+                  <div class="form-group">
+                    <label>소재 1</label>
+                    <select id="tama-sozai1" class="form-control"></select>
+                  </div>
+                  <div class="form-group">
+                    <label>소재 2</label>
+                    <select id="tama-sozai2" class="form-control"></select>
+                  </div>
+                  <div class="form-group">
+                    <label>소재 3</label>
+                    <select id="tama-sozai3" class="form-control"></select>
+                  </div>
+
+                  <div class="form-group switch-container">
+                    <div class="switch-label-desc">
+                      <div class="slider-label">특수탄 존재 플래그</div>
+                      <div class="switch-desc">특수탄이 유효한지 토글</div>
+                    </div>
+                    <label class="switch">
+                      <input type="checkbox" id="tama-sonzai-check">
+                      <span class="slider-toggle"></span>
+                    </label>
+                  </div>
+                </div>
+
+                <div class="section-divider">
+                  <div class="section-divider-text">스펙 조정</div>
+                  <div class="section-divider-line"></div>
+                </div>
+
+                <div class="form-grid">
+                  <div class="form-group">
+                    <label>공격력 보정</label>
+                    <input type="number" id="tama-kougeki" class="form-control" min="-32768" max="32767">
+                  </div>
+                  <div class="form-group">
+                    <label>사거리 보정</label>
+                    <input type="number" id="tama-syatei" class="form-control" min="-128" max="127">
+                  </div>
+                  <div class="form-group">
+                    <label>명중 보정</label>
+                    <input type="number" id="tama-meicyu" class="form-control" min="-32768" max="32767">
+                  </div>
+                  <div class="form-group">
+                    <label>크리티컬 보정</label>
+                    <input type="number" id="tama-critical" class="form-control" min="-32768" max="32767">
+                  </div>
+                  <div class="form-group">
+                    <label>탄수 보정</label>
+                    <input type="number" id="tama-count" class="form-control" min="-128" max="127">
+                  </div>
+                  <div class="form-group">
+                    <label>필요 기력 보정</label>
+                    <input type="number" id="tama-kiryoku" class="form-control" min="-128" max="127">
+                  </div>
+                </div>
+
+                <div class="section-divider">
+                  <div class="section-divider-text">지형 적응 보정</div>
+                  <div class="section-divider-line"></div>
+                </div>
+
+                <div class="form-grid">
+                  <div class="form-group">
+                    <label>공중 적응</label>
+                    <select id="tama-adp-air" class="form-control">
+                      <option value="2">S</option>
+                      <option value="1">A</option>
+                      <option value="0">B</option>
+                      <option value="3">C</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label>지상 적응</label>
+                    <select id="tama-adp-ground" class="form-control">
+                      <option value="2">S</option>
+                      <option value="1">A</option>
+                      <option value="0">B</option>
+                      <option value="3">C</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label>바다 적응</label>
+                    <select id="tama-adp-water" class="form-control">
+                      <option value="2">S</option>
+                      <option value="1">A</option>
+                      <option value="0">B</option>
+                      <option value="3">C</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label>우주 적응</label>
+                    <select id="tama-adp-space" class="form-control">
+                      <option value="2">S</option>
+                      <option value="1">A</option>
+                      <option value="0">B</option>
+                      <option value="3">C</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="section-divider">
+                  <div class="section-divider-text">특수 속성 및 부가 효과</div>
+                  <div class="section-divider-line"></div>
+                </div>
+
+                <div class="form-grid">
+                  <div class="form-group">
+                    <label>부가 효과 종류</label>
+                    <select id="tama-tokusyu" class="form-control"></select>
+                  </div>
+                  <div class="form-group">
+                    <label>효과 레벨 (Lv)</label>
+                    <input type="number" id="tama-tokusyulv" class="form-control" min="0" max="3">
+                  </div>
+                  <div class="form-group">
+                    <label>배리어 타입</label>
+                    <select id="tama-baria" class="form-control"></select>
+                  </div>
+                  <div class="form-group switch-container">
+                    <div class="switch-label-desc">
+                      <div class="slider-label">P속성 (이동 후 공격 가능)</div>
+                      <div class="switch-desc">무기에 P 속성을 부여합니다.</div>
+                    </div>
+                    <label class="switch">
+                      <input type="checkbox" id="tama-pzokusei-check">
+                      <span class="slider-toggle"></span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 6: Items (파츠 / 소재) -->
+        <div class="tab-panel" id="panel-items">
+          <div style="max-width: 1200px; width:100%; margin: 0 auto; display: flex; flex-direction: column; gap: 30px;">
+            
+            <div id="items-scenario-container" style="display: flex; flex-direction: column; gap: 30px;">
+              <div>
+                <div class="detail-title" style="border-bottom: 1px solid var(--border-color); padding-bottom: 15px; margin-bottom: 15px;">
+                  <i class="fa-solid fa-microchip" style="color: var(--secondary); margin-right: 8px;"></i> 강화파츠 보유 개수 설정
+                </div>
+                <div class="items-grid" id="parts-grid-container">
+                  <!-- Javascript will inject parts counters here -->
+                </div>
+              </div>
+
+              <div>
+                <div class="detail-title" style="border-bottom: 1px solid var(--border-color); padding-bottom: 15px; margin-bottom: 15px;">
+                  <i class="fa-solid fa-flask" style="color: var(--primary); margin-right: 8px;"></i> 특수탄 소재 보유 개수 설정
+                </div>
+                <div class="items-grid" id="sozai-grid-container">
+                  <!-- Javascript will inject sozai counters here -->
+                </div>
+              </div>
+            </div>
+
+            <div id="items-system-placeholder" style="display: none; text-align: center; padding: 50px 0; color: var(--text-muted);">
+              <i class="fa-solid fa-box-archive" style="font-size: 3rem; margin-bottom: 15px; color: var(--text-muted);"></i>
+              <p>시스템 세이브 파일에는 강화파츠나 특수탄 소재 정보가 포함되지 않습니다.</p>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </main>
+
+  <!-- Notification Toasts -->
+  <div class="notification-container" id="toast-container"></div>
+
+  <!-- Static Data & App JS -->
+  <script src="editor_data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
