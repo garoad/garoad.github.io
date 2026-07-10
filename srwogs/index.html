@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>슈퍼로봇대전 OG's 세이브 에디터 Web</title>
+  <title>슈퍼로봇대전 OGs 세이브 에디터 Web</title>
   <link rel="stylesheet" href="style.css">
   <!-- encoding-japanese CDN (Shift-JIS 변환용) -->
   <script src="https://unpkg.com/encoding-japanese@2.2.0/encoding.min.js"></script>
@@ -17,7 +17,7 @@
     <div class="logo-container">
       <div class="logo-icon"><i class="fa-solid fa-robot"></i></div>
       <div class="logo-text">SRW OGs Save Editor</div>
-      <div class="logo-badge">Web v1.50</div>
+      <div class="logo-badge">Web v1.01</div>
     </div>
     <div class="header-actions">
       <span id="loaded-file-info" style="font-size: 0.85rem; color: var(--text-secondary); display: none;"></span>
@@ -264,13 +264,18 @@
                     <select id="unit-code-select" class="form-control"></select>
                   </div>
                   
+                  <div class="form-group">
+                    <label>존재 1 (기체 존재 값 - 0 이면 존재)</label>
+                    <input type="number" id="unit-sonzai-val" class="form-control" min="0" max="65535">
+                  </div>
+
                   <div class="form-group switch-container">
                     <div class="switch-label-desc">
-                      <div class="slider-label">기체 존재 플래그</div>
-                      <div class="switch-desc">기체가 세이브에 존재하는지 여부</div>
+                      <div class="slider-label">존재 2 (기체 존재 플래그)</div>
+                      <div class="switch-desc">기체 활성화 여부</div>
                     </div>
                     <label class="switch">
-                      <input type="checkbox" id="unit-sonzai-check">
+                      <input type="checkbox" id="unit-flag-check">
                       <span class="slider-toggle"></span>
                     </label>
                   </div>
@@ -284,6 +289,15 @@
                       <input type="checkbox" id="unit-og2-check">
                       <span class="slider-toggle"></span>
                     </label>
+                  </div>
+
+                  <div class="form-group full-width" style="background: rgba(255,255,255,0.03); border: 1px solid #444; padding: 12px; border-radius: 6px; margin-top: 10px; box-sizing: border-box; width: 100%;">
+                    <label style="font-weight: bold; display: block; margin-bottom: 8px; font-size: 14px; color: #4fa3ff;"><i class="fa-solid fa-copy"></i> 기체 데이터 복사 및 초기화</label>
+                    <button type="button" id="unit-init-btn" class="btn btn-primary" style="width: 100%; margin-bottom: 10px;">기본 데이터로 초기화 (알트아이젠)</button>
+                    <div style="display: flex; gap: 8px; align-items: center; width: 100%;">
+                      <select id="unit-copy-source" class="form-control" style="flex: 1; min-width: 0;"></select>
+                      <button type="button" id="unit-copy-btn" class="btn btn-secondary" style="white-space: nowrap; height: 38px; display: inline-flex; align-items: center; justify-content: center; padding: 0 12px; margin-bottom: 0px;"><i class="fa-solid fa-clone" style="margin-right: 4px;"></i>복사</button>
+                    </div>
                   </div>
 
                   <div class="form-group">
@@ -433,13 +447,18 @@
                     <select id="pilot-code-select" class="form-control"></select>
                   </div>
 
+                  <div class="form-group">
+                    <label>존재 1 (파일럿 존재 값 - 0 이면 존재)</label>
+                    <input type="number" id="pilot-sonzai-val" class="form-control" min="0" max="65535">
+                  </div>
+
                   <div class="form-group switch-container">
                     <div class="switch-label-desc">
-                      <div class="slider-label">파일럿 존재 플래그</div>
-                      <div class="switch-desc">파일럿이 세이브에 존재하는지 여부</div>
+                      <div class="slider-label">존재 2 (파일럿 존재 플래그)</div>
+                      <div class="switch-desc">파일럿 활성화 여부</div>
                     </div>
                     <label class="switch">
-                      <input type="checkbox" id="pilot-sonzai-check">
+                      <input type="checkbox" id="pilot-flag-check">
                       <span class="slider-toggle"></span>
                     </label>
                   </div>
@@ -453,6 +472,15 @@
                       <input type="checkbox" id="pilot-og2-check">
                       <span class="slider-toggle"></span>
                     </label>
+                  </div>
+
+                  <div class="form-group full-width" style="background: rgba(255,255,255,0.03); border: 1px solid #444; padding: 12px; border-radius: 6px; margin-top: 10px; box-sizing: border-box; width: 100%;">
+                    <label style="font-weight: bold; display: block; margin-bottom: 8px; font-size: 14px; color: #4fa3ff;"><i class="fa-solid fa-copy"></i> 파일럿 데이터 복사 및 초기화</label>
+                    <button type="button" id="pilot-init-btn" class="btn btn-primary" style="width: 100%; margin-bottom: 10px;">기본 데이터로 초기화 (쿄스케)</button>
+                    <div style="display: flex; gap: 8px; align-items: center; width: 100%;">
+                      <select id="pilot-copy-source" class="form-control" style="flex: 1; min-width: 0;"></select>
+                      <button type="button" id="pilot-copy-btn" class="btn btn-secondary" style="white-space: nowrap; height: 38px; display: inline-flex; align-items: center; justify-content: center; padding: 0 12px; margin-bottom: 0px;"><i class="fa-solid fa-clone" style="margin-right: 4px;"></i>복사</button>
+                    </div>
                   </div>
 
                   <div class="form-group">
@@ -533,37 +561,45 @@
                   <div class="form-group">
                     <label>공중 적응 (A)</label>
                     <select id="pilot-adp-air" class="form-control">
-                      <option value="3">S</option>
+                      <option value="0">기본 (Default)</option>
+                      <option value="1">S</option>
                       <option value="2">A</option>
-                      <option value="1">B</option>
-                      <option value="0">C</option>
+                      <option value="3">B</option>
+                      <option value="4">C</option>
+                      <option value="5">D</option>
                     </select>
                   </div>
                   <div class="form-group">
                     <label>지상 적응 (G)</label>
                     <select id="pilot-adp-ground" class="form-control">
-                      <option value="3">S</option>
+                      <option value="0">기본 (Default)</option>
+                      <option value="1">S</option>
                       <option value="2">A</option>
-                      <option value="1">B</option>
-                      <option value="0">C</option>
+                      <option value="3">B</option>
+                      <option value="4">C</option>
+                      <option value="5">D</option>
                     </select>
                   </div>
                   <div class="form-group">
                     <label>바다 적응 (W)</label>
                     <select id="pilot-adp-water" class="form-control">
-                      <option value="3">S</option>
+                      <option value="0">기본 (Default)</option>
+                      <option value="1">S</option>
                       <option value="2">A</option>
-                      <option value="1">B</option>
-                      <option value="0">C</option>
+                      <option value="3">B</option>
+                      <option value="4">C</option>
+                      <option value="5">D</option>
                     </select>
                   </div>
                   <div class="form-group">
                     <label>우주 적응 (S)</label>
                     <select id="pilot-adp-space" class="form-control">
-                      <option value="3">S</option>
+                      <option value="0">기본 (Default)</option>
+                      <option value="1">S</option>
                       <option value="2">A</option>
-                      <option value="1">B</option>
-                      <option value="0">C</option>
+                      <option value="3">B</option>
+                      <option value="4">C</option>
+                      <option value="5">D</option>
                     </select>
                   </div>
                 </div>

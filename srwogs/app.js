@@ -1045,6 +1045,7 @@ function initEditorUI() {
     document.getElementById('main-scenario2').value = scCodeOG2.indexOf(ds.Scenario2);
     // StoryNo is used to track OG2.5 scenario (from 1 to 12)
     document.getElementById('main-scenario3').value = scCodeOG25.indexOf(ds.StoryNo);
+    populateCopySources();
     
   } else {
     // System Save UI
@@ -1078,6 +1079,46 @@ function fillSelectOptions(elementId, itemsList, placeholder = null) {
     opt.textContent = `${idx.toString().padStart(3, '0')}: ${item}`;
     select.appendChild(opt);
   });
+}
+
+function populateCopySources() {
+  if (!currentEditor || currentEditor.saveType !== 'scenario') return;
+  const ds = currentEditor.dataSet;
+  if (!ds) return;
+  
+  // Populate unit copy source
+  const unitSelect = document.getElementById('unit-copy-source');
+  if (unitSelect) {
+    const prevVal = unitSelect.value;
+    unitSelect.innerHTML = '';
+    ds.unitDataSet.forEach((u, idx) => {
+      const name = GAME_LISTS.P1_UnitNameList[u.DT_Code] || `Unknown (${u.DT_Code})`;
+      const opt = document.createElement('option');
+      opt.value = idx;
+      opt.textContent = `[SLOT #${idx.toString().padStart(3, '0')}] ${name} (HP: +${u.DT_HP * 10}%)`;
+      unitSelect.appendChild(opt);
+    });
+    if (prevVal !== "" && parseInt(prevVal) < ds.unitDataSet.length) {
+      unitSelect.value = prevVal;
+    }
+  }
+  
+  // Populate pilot copy source
+  const pilotSelect = document.getElementById('pilot-copy-source');
+  if (pilotSelect) {
+    const prevVal = pilotSelect.value;
+    pilotSelect.innerHTML = '';
+    ds.pilotDataSet.forEach((p, idx) => {
+      const name = GAME_LISTS.P3_PilotNameList[p.DT_Code] || `Unknown (${p.DT_Code})`;
+      const opt = document.createElement('option');
+      opt.value = idx;
+      opt.textContent = `[SLOT #${idx.toString().padStart(3, '0')}] ${name} (PP: ${p.DT_PP})`;
+      pilotSelect.appendChild(opt);
+    });
+    if (prevVal !== "" && parseInt(prevVal) < ds.pilotDataSet.length) {
+      pilotSelect.value = prevVal;
+    }
+  }
 }
 
 function renderTab(tabId) {
@@ -1154,7 +1195,8 @@ function selectUnit(idx) {
   codeSelect.value = u.DT_Code;
   
   // Existence
-  document.getElementById('unit-sonzai-check').checked = u.DT_Sonzai === 0; // C# 툴: 0이 존재, 그 외엔 비활성
+  document.getElementById('unit-sonzai-val').value = u.DT_Sonzai;
+  document.getElementById('unit-flag-check').checked = u.DT_UnitFlag === 1;
   document.getElementById('unit-og2-check').checked = u.DT_OG2Flag;
   
   // Full upgrade bonus
@@ -1184,14 +1226,13 @@ function selectUnit(idx) {
   const pilots = ['pilot-1', 'pilot-2', 'pilot-3', 'pilot-4'];
   pilots.forEach((pId, pIdx) => {
     const select = document.getElementById(`unit-${pId}`);
-    if (select.options.length === 0) {
-      // Build pilot mapping names based on PilotDataSet
-      const pilotMappingNames = ds.pilotDataSet.map((p, pSlot) => {
-        const name = GAME_LISTS.P3_PilotNameList[p.DT_Code] || `Unknown (${p.DT_Code})`;
-        return `[SLOT #${pSlot.toString().padStart(2, '0')}] ${name}`;
-      });
-      fillSelectOptions(`unit-${pId}`, pilotMappingNames, "무인 (Empty)");
-    }
+    select.innerHTML = '';
+    // Build pilot mapping names based on PilotDataSet
+    const pilotMappingNames = ds.pilotDataSet.map((p, pSlot) => {
+      const name = GAME_LISTS.P3_PilotNameList[p.DT_Code] || `Unknown (${p.DT_Code})`;
+      return `[SLOT #${pSlot.toString().padStart(2, '0')}] ${name}`;
+    });
+    fillSelectOptions(`unit-${pId}`, pilotMappingNames, "무인 (Empty)");
     select.value = u[`DT_Pilot${pIdx+1}`];
   });
 
@@ -1311,7 +1352,8 @@ function selectPilot(idx) {
   codeSelect.value = p.DT_Code;
   
   // Existence
-  document.getElementById('pilot-sonzai-check').checked = p.DT_Sonzai === 0;
+  document.getElementById('pilot-sonzai-val').value = p.DT_Sonzai;
+  document.getElementById('pilot-flag-check').checked = p.DT_PilotFlag === 1;
   document.getElementById('pilot-og2-check').checked = p.DT_OG2Flag;
   
   document.getElementById('pilot-unit-id').value = p.DT_Unit;
@@ -1707,19 +1749,107 @@ function setupFormControls() {
     // Update title text and list view
     document.getElementById('unit-detail-title').textContent = GAME_LISTS.P1_UnitNameList[u.DT_Code];
     renderUnitsList();
+    populateCopySources();
   });
 
-  document.getElementById('unit-sonzai-check').addEventListener('change', (e) => {
+  document.getElementById('unit-sonzai-val').addEventListener('change', (e) => {
     if (selectedUnitIdx === -1) return;
     const u = currentEditor.dataSet.unitDataSet[selectedUnitIdx];
-    // 0 is exists, 8191 is non-existent
-    u.DT_Sonzai = e.target.checked ? 0 : 8191;
+    u.DT_Sonzai = parseInt(e.target.value) || 0;
+  });
+
+  document.getElementById('unit-flag-check').addEventListener('change', (e) => {
+    if (selectedUnitIdx === -1) return;
+    const u = currentEditor.dataSet.unitDataSet[selectedUnitIdx];
+    u.DT_UnitFlag = e.target.checked ? 1 : 0;
   });
 
   document.getElementById('unit-og2-check').addEventListener('change', (e) => {
     if (selectedUnitIdx === -1) return;
     const u = currentEditor.dataSet.unitDataSet[selectedUnitIdx];
     u.DT_OG2Flag = e.target.checked;
+  });
+
+  document.getElementById('unit-init-btn').addEventListener('click', () => {
+    if (selectedUnitIdx === -1) return;
+    const u = currentEditor.dataSet.unitDataSet[selectedUnitIdx];
+    
+    // Initialize unit values
+    u.DT_UnitFlag = 1;
+    u.DT_Sonzai = 0;
+    u.DT_Code = 1; // Default to Alt Eisen
+    u.DT_OG2Flag = false;
+    u.DT_Full = 0;
+    u.DT_HP = 0;
+    u.DT_EN = 0;
+    u.DT_Undou = 0;
+    u.DT_Soukou = 0;
+    
+    u.DT_KansouBuki = new Array(18).fill(0);
+    u.DT_Parts1 = 0;
+    u.DT_Parts2 = 0;
+    u.DT_Parts3 = 0;
+    u.DT_Parts4 = 0;
+    
+    u.DT_Buki = new Array(32).fill(0);
+    u.DT_Tama = new Array(32).fill(0);
+    
+    u.DT_Pilot1 = 65535;
+    u.DT_Pilot2 = 65535;
+    u.DT_Pilot3 = 65535;
+    u.DT_Pilot4 = 65535;
+    
+    // Refresh UI
+    selectUnit(selectedUnitIdx);
+    renderUnitsList();
+    populateCopySources();
+    alert('기체가 기본 데이터로 초기화되었습니다.');
+  });
+
+  document.getElementById('unit-copy-btn').addEventListener('click', () => {
+    if (selectedUnitIdx === -1) return;
+    const sourceIdx = parseInt(document.getElementById('unit-copy-source').value);
+    if (isNaN(sourceIdx) || sourceIdx < 0 || sourceIdx >= currentEditor.dataSet.unitDataSet.length) {
+      alert('복사할 원본 기체를 선택해주세요.');
+      return;
+    }
+    if (sourceIdx === selectedUnitIdx) {
+      alert('동일한 기체 슬롯으로는 복사할 수 없습니다.');
+      return;
+    }
+    
+    const target = currentEditor.dataSet.unitDataSet[selectedUnitIdx];
+    const source = currentEditor.dataSet.unitDataSet[sourceIdx];
+    
+    target.DT_UnitFlag = source.DT_UnitFlag;
+    target.DT_Sonzai = source.DT_Sonzai;
+    target.DT_Code = source.DT_Code;
+    target.DT_OG2Flag = source.DT_OG2Flag;
+    target.DT_Full = source.DT_Full;
+    target.DT_HP = source.DT_HP;
+    target.DT_EN = source.DT_EN;
+    target.DT_Undou = source.DT_Undou;
+    target.DT_Soukou = source.DT_Soukou;
+    
+    target.DT_KansouBuki = [...source.DT_KansouBuki];
+    target.DT_Parts1 = source.DT_Parts1;
+    target.DT_Parts2 = source.DT_Parts2;
+    target.DT_Parts3 = source.DT_Parts3;
+    target.DT_Parts4 = source.DT_Parts4;
+    
+    target.DT_Buki = [...source.DT_Buki];
+    target.DT_Tama = [...source.DT_Tama];
+    
+    target.DT_Pilot1 = source.DT_Pilot1;
+    target.DT_Pilot2 = source.DT_Pilot2;
+    target.DT_Pilot3 = source.DT_Pilot3;
+    target.DT_Pilot4 = source.DT_Pilot4;
+    
+    // Refresh UI
+    selectUnit(selectedUnitIdx);
+    renderUnitsList();
+    populateCopySources();
+    alert(`기체 슬롯 #${sourceIdx}의 데이터가 슬롯 #${selectedUnitIdx}로 복사되었습니다.`);
   });
 
   document.getElementById('unit-full-bonus').addEventListener('change', (e) => {
@@ -1760,7 +1890,37 @@ function setupFormControls() {
       if (selectedUnitIdx === -1) return;
       const u = currentEditor.dataSet.unitDataSet[selectedUnitIdx];
       const val = parseInt(e.target.value);
+      const oldPilotIdx = u[`DT_Pilot${idx}`];
+      
+      // 1. Unassign old pilot if existed
+      if (oldPilotIdx !== 65535 && currentEditor.dataSet.pilotDataSet[oldPilotIdx]) {
+        currentEditor.dataSet.pilotDataSet[oldPilotIdx].DT_Unit = 65535;
+      }
+      
+      // 2. Assign new pilot
       u[`DT_Pilot${idx}`] = val;
+      
+      if (val !== 65535 && currentEditor.dataSet.pilotDataSet[val]) {
+        const newPilot = currentEditor.dataSet.pilotDataSet[val];
+        const oldUnitIdx = newPilot.DT_Unit;
+        
+        // If this pilot was riding another unit, remove them from that unit's pilot slots
+        if (oldUnitIdx !== 65535 && currentEditor.dataSet.unitDataSet[oldUnitIdx]) {
+          const oldUnit = currentEditor.dataSet.unitDataSet[oldUnitIdx];
+          for (let pIdx = 1; pIdx <= 4; pIdx++) {
+            if (oldUnit[`DT_Pilot${pIdx}`] === val) {
+              oldUnit[`DT_Pilot${pIdx}`] = 65535;
+            }
+          }
+        }
+        
+        // Set the pilot's unit to the current unit
+        newPilot.DT_Unit = selectedUnitIdx;
+      }
+      
+      // Refresh list to show new pilot names
+      renderUnitsList();
+      renderPilotsList();
     });
   }
 
@@ -1772,12 +1932,19 @@ function setupFormControls() {
     
     document.getElementById('pilot-detail-title').textContent = GAME_LISTS.P3_PilotNameList[p.DT_Code];
     renderPilotsList();
+    populateCopySources();
   });
 
-  document.getElementById('pilot-sonzai-check').addEventListener('change', (e) => {
+  document.getElementById('pilot-sonzai-val').addEventListener('change', (e) => {
     if (selectedPilotIdx === -1) return;
     const p = currentEditor.dataSet.pilotDataSet[selectedPilotIdx];
-    p.DT_Sonzai = e.target.checked ? 0 : 8191; // 0 exists, 8191 non-exists
+    p.DT_Sonzai = parseInt(e.target.value) || 0;
+  });
+
+  document.getElementById('pilot-flag-check').addEventListener('change', (e) => {
+    if (selectedPilotIdx === -1) return;
+    const p = currentEditor.dataSet.pilotDataSet[selectedPilotIdx];
+    p.DT_PilotFlag = e.target.checked ? 1 : 0;
   });
 
   document.getElementById('pilot-og2-check').addEventListener('change', (e) => {
@@ -1786,10 +1953,147 @@ function setupFormControls() {
     p.DT_OG2Flag = e.target.checked;
   });
 
+  document.getElementById('pilot-init-btn').addEventListener('click', () => {
+    if (selectedPilotIdx === -1) return;
+    const p = currentEditor.dataSet.pilotDataSet[selectedPilotIdx];
+    
+    // Initialize pilot values
+    p.DT_PilotFlag = 1;
+    p.DT_Sonzai = 0;
+    p.DT_Code = 1; // Kyosuke
+    p.DT_OG2Flag = false;
+    p.DT_Kill = 10;
+    p.DT_Ex = 0;
+    p.DT_PP = 100;
+    
+    p.DT_Kakuto = 150;
+    p.DT_Syageki = 150;
+    p.DT_Bougyo = 150;
+    p.DT_Giryo = 150;
+    p.DT_Kaihi = 150;
+    p.DT_Meicyu = 150;
+    
+    // Default skills: 8 (底力), 9 (援護攻撃), 18 (SP回復), 19 (集中力)
+    p.DT_Ginou1 = 8;
+    p.DT_GinouLv1 = 4;
+    p.DT_Ginou2 = 9;
+    p.DT_GinouLv2 = 1;
+    p.DT_Ginou3 = 18;
+    p.DT_GinouLv3 = 0;
+    p.DT_Ginou4 = 19;
+    p.DT_GinouLv4 = 0;
+    p.DT_Ginou5 = 0;
+    p.DT_GinouLv5 = 0;
+    p.DT_Ginou6 = 0;
+    p.DT_GinouLv6 = 0;
+    
+    p.DT_Tchikei1 = 0;
+    p.DT_Tchikei2 = 0;
+    p.DT_Tchikei3 = 0;
+    p.DT_Tchikei4 = 0;
+    p.DT_CGFlag = false;
+    p.DT_Unit = 65535;
+    
+    // Refresh UI
+    selectPilot(selectedPilotIdx);
+    renderPilotsList();
+    populateCopySources();
+    alert('파일럿이 기본 데이터와 기본 스킬로 초기화되었습니다.');
+  });
+
+  document.getElementById('pilot-copy-btn').addEventListener('click', () => {
+    if (selectedPilotIdx === -1) return;
+    const sourceIdx = parseInt(document.getElementById('pilot-copy-source').value);
+    if (isNaN(sourceIdx) || sourceIdx < 0 || sourceIdx >= currentEditor.dataSet.pilotDataSet.length) {
+      alert('복사할 원본 파일럿을 선택해주세요.');
+      return;
+    }
+    if (sourceIdx === selectedPilotIdx) {
+      alert('동일한 파일럿 슬롯으로는 복사할 수 없습니다.');
+      return;
+    }
+    
+    const target = currentEditor.dataSet.pilotDataSet[selectedPilotIdx];
+    const source = currentEditor.dataSet.pilotDataSet[sourceIdx];
+    
+    target.DT_PilotFlag = source.DT_PilotFlag;
+    target.DT_Sonzai = source.DT_Sonzai;
+    target.DT_Code = source.DT_Code;
+    target.DT_OG2Flag = source.DT_OG2Flag;
+    target.DT_Kill = source.DT_Kill;
+    target.DT_Ex = source.DT_Ex;
+    target.DT_PP = source.DT_PP;
+    
+    target.DT_Kakuto = source.DT_Kakuto;
+    target.DT_Syageki = source.DT_Syageki;
+    target.DT_Bougyo = source.DT_Bougyo;
+    target.DT_Giryo = source.DT_Giryo;
+    target.DT_Kaihi = source.DT_Kaihi;
+    target.DT_Meicyu = source.DT_Meicyu;
+    
+    target.DT_Ginou1 = source.DT_Ginou1;
+    target.DT_Ginou2 = source.DT_Ginou2;
+    target.DT_Ginou3 = source.DT_Ginou3;
+    target.DT_Ginou4 = source.DT_Ginou4;
+    target.DT_Ginou5 = source.DT_Ginou5;
+    target.DT_Ginou6 = source.DT_Ginou6;
+    
+    target.DT_GinouLv1 = source.DT_GinouLv1;
+    target.DT_GinouLv2 = source.DT_GinouLv2;
+    target.DT_GinouLv3 = source.DT_GinouLv3;
+    target.DT_GinouLv4 = source.DT_GinouLv4;
+    target.DT_GinouLv5 = source.DT_GinouLv5;
+    target.DT_GinouLv6 = source.DT_GinouLv6;
+    
+    target.DT_Tchikei1 = source.DT_Tchikei1;
+    target.DT_Tchikei2 = source.DT_Tchikei2;
+    target.DT_Tchikei3 = source.DT_Tchikei3;
+    target.DT_Tchikei4 = source.DT_Tchikei4;
+    
+    target.DT_CGFlag = source.DT_CGFlag;
+    target.DT_Unit = source.DT_Unit;
+    
+    // Refresh UI
+    selectPilot(selectedPilotIdx);
+    renderPilotsList();
+    populateCopySources();
+    alert(`파일럿 슬롯 #${sourceIdx}의 데이터가 슬롯 #${selectedPilotIdx}로 복사되었습니다.`);
+  });
+
   document.getElementById('pilot-unit-id').addEventListener('input', (e) => {
     if (selectedPilotIdx === -1) return;
     const p = currentEditor.dataSet.pilotDataSet[selectedPilotIdx];
-    p.DT_Unit = parseInt(e.target.value) || 65535;
+    const val = parseInt(e.target.value);
+    const oldUnitIdx = p.DT_Unit;
+    
+    // 1. Remove pilot from old unit's slots
+    if (oldUnitIdx !== 65535 && currentEditor.dataSet.unitDataSet[oldUnitIdx]) {
+      const oldUnit = currentEditor.dataSet.unitDataSet[oldUnitIdx];
+      for (let pIdx = 1; pIdx <= 4; pIdx++) {
+        if (oldUnit[`DT_Pilot${pIdx}`] === selectedPilotIdx) {
+          oldUnit[`DT_Pilot${pIdx}`] = 65535;
+        }
+      }
+    }
+    
+    // 2. Assign pilot to new unit's slot 1
+    p.DT_Unit = isNaN(val) ? 65535 : val;
+    if (p.DT_Unit !== 65535 && currentEditor.dataSet.unitDataSet[p.DT_Unit]) {
+      const newUnit = currentEditor.dataSet.unitDataSet[p.DT_Unit];
+      for (let pIdx = 1; pIdx <= 4; pIdx++) {
+        if (newUnit[`DT_Pilot${pIdx}`] === selectedPilotIdx) {
+          newUnit[`DT_Pilot${pIdx}`] = 65535;
+        }
+      }
+      const oldUnitPilot = newUnit.DT_Pilot1;
+      if (oldUnitPilot !== 65535 && currentEditor.dataSet.pilotDataSet[oldUnitPilot]) {
+        currentEditor.dataSet.pilotDataSet[oldUnitPilot].DT_Unit = 65535;
+      }
+      newUnit.DT_Pilot1 = selectedPilotIdx;
+    }
+    
+    renderUnitsList();
+    renderPilotsList();
   });
 
   document.getElementById('pilot-cgflag-check').addEventListener('change', (e) => {
